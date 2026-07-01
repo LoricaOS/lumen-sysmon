@@ -473,7 +473,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    g_st.lwin = lumen_window_create(g_st.lfd, "System Monitor", win_w, win_h);
+    g_st.lwin = lumen_window_create_ex(g_st.lfd, "System Monitor", win_w, win_h,
+                                       LUMEN_WIN_FLAG_RESIZABLE);
     if (!g_st.lwin) {
         dprintf(2, "[SYSMON] window_create failed\n");
         close(g_st.lfd);
@@ -518,6 +519,21 @@ int main(int argc, char **argv)
                 break;
             if (ev.type == LUMEN_EV_KEY && ev.key.pressed)
                 handle_key(ev.key.keycode);
+            if (ev.type == LUMEN_EV_RESIZED) {
+                /* Compositor maximized/snapped us: fetch the new buffer and
+                 * rebuild the draw surface to point at it, then repaint. */
+                if (lumen_window_apply_resize(g_st.lwin, ev.resized.new_w,
+                                              ev.resized.new_h) == 0) {
+                    g_st.fb_w = g_st.lwin->w;
+                    g_st.fb_h = g_st.lwin->h;
+                    g_st.surf = (surface_t){
+                        .buf = (uint32_t *)g_st.lwin->backbuf,
+                        .w = g_st.fb_w, .h = g_st.fb_h,
+                        .pitch = g_st.lwin->stride,
+                    };
+                    g_st.dirty = 1;
+                }
+            }
             if (ev.type == LUMEN_EV_MOUSE) {
                 if (ev.mouse.evtype == LUMEN_MOUSE_WHEEL)
                     handle_wheel(ev.mouse.scroll);
