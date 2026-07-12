@@ -41,7 +41,10 @@
 #define WIN_H 560
 
 #define PAD        14
-#define BG_COLOR   0x00141418   /* off-key near-black (NOT C_TERM_BG) */
+/* Window/base fill: the themed surface, so the app follows the light/dark
+ * switch instead of staying pinned to a private near-black that exists in
+ * neither palette. THEME_SURFACE is already off the frost color-key. */
+#define BG_COLOR   THEME_SURFACE
 
 /* Memory bar */
 #define BAR_X      PAD
@@ -331,7 +334,9 @@ static void render(void)
                        : (idx & 1) ? C_INPUT_BG : BG_COLOR;
         draw_fill_rect(s, TBL_X, ry, row_w, ROW_H, rowbg);
 
-        uint32_t fg = (idx == g_st.sel) ? C_WIN : C_TEXT;
+        /* Selected row is accent-filled (C_SEL_BG); its text must use the
+         * on-accent token to stay legible under a light accent. */
+        uint32_t fg = (idx == g_st.sel) ? THEME_TEXT_ON_ACCENT : C_TEXT;
 
         char cell[64];
         snprintf(cell, sizeof(cell), "%d", pr->pid);
