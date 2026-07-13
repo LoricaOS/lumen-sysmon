@@ -459,6 +459,46 @@ static void handle_wheel(int delta)
     g_st.dirty = 1;
 }
 
+/* ── Top-bar menu ─────────────────────────────────────────────────────── */
+
+enum {
+    CMD_CLOSE = 1,   /* File > Close    -> quit */
+    CMD_REFRESH,     /* View > Refresh  -> re-scan /proc + meminfo */
+    CMD_KILL,        /* Process > End Process -> SIGTERM selected pid */
+};
+
+static void publish_menu(void)
+{
+    lumen_set_menu_t m;
+    glyph_menu_reset(&m, g_st.lwin->id);
+    int file = glyph_menu_add_col(&m, "File");
+    glyph_menu_add_item(&m, file, "Close", CMD_CLOSE);
+    int view = glyph_menu_add_col(&m, "View");
+    glyph_menu_add_item(&m, view, "Refresh", CMD_REFRESH);
+    int proc = glyph_menu_add_col(&m, "Process");
+    glyph_menu_add_item(&m, proc, "End Process", CMD_KILL);
+    lumen_window_set_menu(g_st.lwin, &m);
+}
+
+static void menu_invoke(uint32_t cmd)
+{
+    switch (cmd) {
+    case CMD_CLOSE:
+        g_st.done = 1;
+        break;
+    case CMD_REFRESH:
+        scan_meminfo();
+        scan_procs();
+        g_st.dirty = 1;
+        break;
+    case CMD_KILL:
+        kill_selected();
+        break;
+    default:
+        break;
+    }
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────── */
 
 int main(int argc, char **argv)
@@ -493,6 +533,7 @@ int main(int argc, char **argv)
     };
 
     font_init();
+    publish_menu();
 
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -524,6 +565,8 @@ int main(int argc, char **argv)
                 break;
             if (ev.type == LUMEN_EV_KEY && ev.key.pressed)
                 handle_key(ev.key.keycode);
+            if (ev.type == LUMEN_EV_MENU_INVOKE)
+                menu_invoke(ev.menu.command);
             if (ev.type == LUMEN_EV_RESIZED) {
                 /* Compositor maximized/snapped us: fetch the new buffer and
                  * rebuild the draw surface to point at it, then repaint. */
